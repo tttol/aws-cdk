@@ -109,6 +109,19 @@ export interface FleetProps {
    * @default - A security group will be automatically created.
    */
   readonly securityGroups?: ec2.ISecurityGroup[];
+
+  /**
+   * The custom Amazon Machine Image (AMI) of the compute fleet.
+   *
+   * Specify this when using an EC2-based environment type (LINUX_EC2, ARM_EC2, WINDOWS_EC2, MAC_ARM).
+   * If not specified, AWS-managed AMI will be used.
+   *
+   * The AMI ID must follow the pattern: ami-[alphanumeric characters]
+   * Example: ami-0abcdef1234567890
+   *
+   * @default - AWS-managed AMI is used
+   */
+  readonly amiId?: string;
 }
 
 /**
@@ -322,6 +335,18 @@ export class Fleet extends Resource implements IFleet {
       throw new ValidationError('baseCapacity must be greater than or equal to 1', this);
     }
 
+    if (props.amiId && !Token.isUnresolved(props.amiId)) {
+      if ([EnvironmentType.LINUX_EC2, EnvironmentType.ARM_EC2, EnvironmentType.WINDOWS_EC2].includes(props.environmentType)) {
+        const amiIdPattern = /^ami-[a-f0-9]{8,}$/;
+        if (!amiIdPattern.test(props.amiId)) {
+          throw new ValidationError(
+            `amiId must follow the pattern 'ami-[alphanumeric characters]', got: ${props.amiId}`,
+            this,
+          );
+        }
+      }
+    }
+
     let computeConfiguration: CfnFleet.ComputeConfigurationProperty | undefined;
     if (
       props.computeType === FleetComputeType.ATTRIBUTE_BASED
@@ -380,6 +405,7 @@ export class Fleet extends Resource implements IFleet {
       computeConfiguration,
       fleetVpcConfig: vpcConfiguration?.fleetVpcConfig,
       fleetServiceRole: this.role?.roleArn,
+      imageId: props.amiId,
     });
 
     if (vpcConfiguration) {

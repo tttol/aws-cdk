@@ -641,6 +641,97 @@ describe('vpc', () => {
   });
 });
 
+describe('amiId', () => {
+  test.each([
+    { environmentType: codebuild.EnvironmentType.LINUX_EC2, computeType: codebuild.FleetComputeType.SMALL, expectedComputeType: 'BUILD_GENERAL1_SMALL', expectedEnvironmentType: 'LINUX_EC2' },
+    { environmentType: codebuild.EnvironmentType.ARM_EC2, computeType: codebuild.FleetComputeType.SMALL, expectedComputeType: 'BUILD_GENERAL1_SMALL', expectedEnvironmentType: 'ARM_EC2' },
+    { environmentType: codebuild.EnvironmentType.WINDOWS_EC2, computeType: codebuild.FleetComputeType.MEDIUM, expectedComputeType: 'BUILD_GENERAL1_MEDIUM', expectedEnvironmentType: 'WINDOWS_EC2' },
+  ])('can specify amiId for $expectedEnvironmentType environment', ({ environmentType, computeType, expectedComputeType, expectedEnvironmentType }) => {
+    // GIVEN
+    const stack = new cdk.Stack();
+
+    // WHEN
+    new codebuild.Fleet(stack, 'Fleet', {
+      baseCapacity: 1,
+      computeType,
+      environmentType,
+      amiId: 'ami-0abcdef1234567890',
+    });
+
+    // THEN
+    Template.fromStack(stack).hasResourceProperties('AWS::CodeBuild::Fleet', {
+      BaseCapacity: 1,
+      ComputeType: expectedComputeType,
+      EnvironmentType: expectedEnvironmentType,
+      ImageId: 'ami-0abcdef1234567890',
+    });
+  });
+
+  test.each([
+    { environmentType: codebuild.EnvironmentType.LINUX_EC2, computeType: codebuild.FleetComputeType.SMALL, invalidAmiId: 'invalid-ami-id' },
+    { environmentType: codebuild.EnvironmentType.ARM_EC2, computeType: codebuild.FleetComputeType.SMALL, invalidAmiId: 'ami-' },
+    { environmentType: codebuild.EnvironmentType.WINDOWS_EC2, computeType: codebuild.FleetComputeType.MEDIUM, invalidAmiId: 'ami-INVALID123' },
+  ])('throws error for invalid amiId format: $invalidAmiId', ({ environmentType, computeType, invalidAmiId }) => {
+    // GIVEN
+    const stack = new cdk.Stack();
+
+    // THEN
+    expect(() => {
+      new codebuild.Fleet(stack, 'Fleet', {
+        baseCapacity: 1,
+        computeType,
+        environmentType,
+        amiId: invalidAmiId,
+      });
+    }).toThrow(new RegExp(`amiId must follow the pattern 'ami-\\[alphanumeric characters\\]', got: ${invalidAmiId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  });
+
+  test('does not validate amiId for LINUX_CONTAINER environment', () => {
+    // GIVEN
+    const stack = new cdk.Stack();
+
+    // WHEN
+    new codebuild.Fleet(stack, 'Fleet', {
+      baseCapacity: 1,
+      computeType: codebuild.FleetComputeType.SMALL,
+      environmentType: codebuild.EnvironmentType.LINUX_CONTAINER,
+      amiId: 'invalid-ami-id',
+    });
+
+    // THEN
+    Template.fromStack(stack).hasResourceProperties('AWS::CodeBuild::Fleet', {
+      BaseCapacity: 1,
+      ComputeType: 'BUILD_GENERAL1_SMALL',
+      EnvironmentType: 'LINUX_CONTAINER',
+      ImageId: 'invalid-ami-id',
+    });
+  });
+
+  test('allows token as amiId without validation', () => {
+    // GIVEN
+    const stack = new cdk.Stack();
+    const token = cdk.Fn.importValue('AmiId');
+
+    // WHEN
+    new codebuild.Fleet(stack, 'Fleet', {
+      baseCapacity: 1,
+      computeType: codebuild.FleetComputeType.SMALL,
+      environmentType: codebuild.EnvironmentType.LINUX_EC2,
+      amiId: token,
+    });
+
+    // THEN
+    Template.fromStack(stack).hasResourceProperties('AWS::CodeBuild::Fleet', {
+      BaseCapacity: 1,
+      ComputeType: 'BUILD_GENERAL1_SMALL',
+      EnvironmentType: 'LINUX_EC2',
+      ImageId: {
+        'Fn::ImportValue': 'AmiId',
+      },
+    });
+  });
+});
+
 describe('overflowBehavior', () => {
   test('can set overflow behavior to QUEUE', () => {
     // GIVEN

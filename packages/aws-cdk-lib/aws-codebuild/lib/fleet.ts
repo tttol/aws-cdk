@@ -113,7 +113,7 @@ export interface FleetProps {
   /**
    * The custom Amazon Machine Image (AMI) of the compute fleet.
    *
-   * Specify this when using an EC2-based environment type (LINUX_EC2, ARM_EC2, WINDOWS_EC2, MAC_ARM).
+   * Specify this when using an EC2-based environment type (LINUX_EC2, ARM_EC2, WINDOWS_EC2).
    * If not specified, AWS-managed AMI will be used.
    *
    * The AMI ID must follow the pattern: ami-[alphanumeric characters]
@@ -396,6 +396,7 @@ export class Fleet extends Resource implements IFleet {
     }
 
     const vpcConfiguration = this.configureVpc(props);
+    const amiPermissions = this.configureAmiPermissions(props);
     const resource = new CfnFleet(this, 'Resource', {
       name: props.fleetName,
       baseCapacity: props.baseCapacity,
@@ -420,6 +421,12 @@ export class Fleet extends Resource implements IFleet {
       // fail to initialize because they can't talk to any AWS APIs.
       resource.node.addDependency(...props.vpc.node.findAll());
     }
+    if (amiPermissions) {
+      // We need to explicitly attach these dependencies as the CfnFleet tries
+      // to describe AMI images as a part of creation, if there is a custom AMI
+      // specified.
+      resource.node.addDependency(...amiPermissions.policyDependables);
+    }
 
     this.fleetArn = this.getResourceArnAttribute(resource.attrArn, {
       service: 'codebuild',
@@ -436,6 +443,23 @@ export class Fleet extends Resource implements IFleet {
     if (value !== undefined && !Token.isUnresolved(value) && (value < 0 || !Number.isInteger(value))) {
       throw new ValidationError(`${fieldName} must be a positive integer, got: ${value}`, this);
     }
+  }
+
+  private configureAmiPermissions(props: FleetProps): { policyDependables: Array<IDependable> } | undefined {
+    if (!props.amiId) {
+      return undefined;
+    }
+
+    const policyDependables: Array<IDependable> = [];
+    const addResult = this.grantPrincipal.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['ec2:DescribeImages'],
+      resources: ['*'],
+    }));
+    if (addResult.policyDependable) {
+      policyDependables.push(addResult.policyDependable);
+    }
+
+    return { policyDependables };
   }
 
   private configureVpc(props: FleetProps): { fleetVpcConfig: CfnFleet.VpcConfigProperty; policyDependables: Array<IDependable> } | undefined {

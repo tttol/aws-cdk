@@ -1,0 +1,20 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "9c8f91371fee9d47d2db56a4dd30a78d87cee6d1e115a95e5369f0fa9faa7ed0": {
+      "displayName": "aws-cdk-project-fleet-custom-ami Template",
+      "source": {
+        "path": "aws-cdk-project-fleet-custom-ami.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-3c46eea4": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "9c8f91371fee9d47d2db56a4dd30a78d87cee6d1e115a95e5369f0fa9faa7ed0.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

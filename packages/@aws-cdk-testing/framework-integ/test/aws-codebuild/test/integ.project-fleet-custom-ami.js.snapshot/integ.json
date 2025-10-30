@@ -1,0 +1,13 @@
+{
+  "version": "48.0.0",
+  "testCases": {
+    "FleetCustomAmiIntegTest/DefaultTest": {
+      "stacks": [
+        "aws-cdk-project-fleet-custom-ami"
+      ],
+      "assertionStack": "FleetCustomAmiIntegTest/DefaultTest/DeployAssert",
+      "assertionStackName": "FleetCustomAmiIntegTestDefaultTestDeployAssertA98C6F92"
+    }
+  },
+  "minimumCliVersion": "2.1027.0"
+}
